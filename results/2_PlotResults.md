@@ -1,152 +1,45 @@
-#_____________________________________________________________________
-# Clean start ----
-rm(list = ls())
-graphics.off()
-#_____________________________________________________________________
-# parameters for pptx ----
-leTitre   <- 'DICA: MHLA-c' # my title
-leDir     <-  'results/'       # Where am I
-filename  <- 'GenAge-Block-DiCA'     # file name for results
-path2save <-  paste0(leDir, filename)
-#_____________________________________________________________________
-#_____________________________________________________________________
-# Preamble ----
-leHome    <- getwd()
-DataDir   <- 'data/'
-# libraries ----
+2_PlotResults
+================
 
-# install.packages('TInPosition') # if needed
-# devtools::install_github('HerveAbdi/PTCA4CATA')
-# devtools::install_github('HerveAbdi/data4PCCAR')
+## Plot the results
 
-library(tidyverse)
-library(ExPosition)
-library(TExPosition)
-library(TInPosition)
-library(PTCA4CATA)
-library(data4PCCAR)
-library(Ckmeans.1d.dp)
-library(ggrepel)
-
-# A couple of functions we may need ----
-
-function.path <- "code/functions/"
-setwd(function.path)
-files.sources = list.files()
-sapply(files.sources, source)
-setwd(leHome)
-
-#_____________________________________________________________________
-## Main dataset
-data.master<- read.csv(paste0(DataDir, "MHLAc_AgeGen-ordered.csv"), header=TRUE)
-data.master$AgeGenCat <- gsub('25+.', '≥25', data.master$AgeGenCat)
-data.master$AgeGenCat <- gsub('18-24', '≤24', data.master$AgeGenCat)
-data.master$Age <- gsub('25+.', '≥25', data.master$Age)
-data.master$Age <- gsub('18-24', '≤24', data.master$Age)
-rownames(data.master) <- data.master[,1]
-design.gender <- as.matrix(data.master[,4])
-design.age <- as.matrix(data.master[,5])
-design.age.gen <- as.matrix(data.master[,6])
-design.age.sup <- as.matrix(data.master[,7])
-design.age.gen.sup <- as.matrix(data.master[,8])
-design.maj.clin <- as.matrix(data.master[,9])
-design.clin <- as.matrix(data.master[,10])
-design.major <- as.matrix(data.master[,11])
-data.all <- as.matrix(data.master[,-c(1:11)])
-
-# Normalise data matrix by groups/tables
-groups.norm<- read.csv(paste0(DataDir, "MudiCA-Group-Norm-ordered.csv"),header=TRUE)
-groups.norm.nom <- as.matrix(makeNominalData(groups.norm))
-groups.norm.nom.bary <- scale(groups.norm.nom, center = FALSE, scale = colSums(groups.norm.nom))
-
-# Get groups/tables and make nominal
-groups <- read.csv(paste0(DataDir, "MuDiCA_Groups_Transpose-1272-ordered.csv"),header=TRUE)
-groups <- as.matrix(groups)
-groups.nominal <- as.matrix(makeNominalData(groups))
-colnames(groups.nominal) <-  sub("Disorder.", "", colnames(groups.nominal))
-
-## Nominalise data and design
-data.all.nom <- as.matrix(makeNominalData(data.all))
-design.gender.nom <- as.matrix(makeNominalData(design.gender))
-design.age.nom <- as.matrix(makeNominalData(design.age))
-design.age.sup.nom <- as.matrix(makeNominalData(design.age.sup))
-design.age.gen.nom <- as.matrix(makeNominalData(design.age.gen))
-design.age.gen.sup.nom <- as.matrix(makeNominalData(design.age.gen.sup))
-design.major.nom <- as.matrix(makeNominalData(design.major))
-design.clin.nom <- as.matrix(makeNominalData(design.clin))
-design.maj.clin.nom <- as.matrix(makeNominalData(design.maj.clin))
-
-descriptors <-  cbind(design.gender, design.age, design.age.gen, design.major, design.clin, design.maj.clin) 
-colnames(descriptors) <- c("Gender", "Age", "AgeGen", "Major", "ClinCourse", "MajorClin")
-descriptors <- data.frame(descriptors)
-
-# # # Plain DiCA WITH block normalization WITH projection
-groups.norm.nom.bary.sum <- rowSums(groups.norm.nom.bary)
-resDiCA.data <- (data.all.nom*matrix(data =groups.norm.nom.bary.sum, nrow = dim(data.all.nom)[1], ncol = length(groups.norm.nom.bary.sum),byrow=TRUE))
-rawData <- resDiCA.data
-
-#_____________________________________________________________________
-# Computations ----
-# Run DiCA  ----
-# If you want to give equal weights to call the categories, use the g.masses code below
-# g.masses <-  rep(1 / ncol(makeNominalData(XYmat)), length(unique(descriptors$MajorClin)))
-
-# recode as factors ----
-XYmat <- rawData
-design.choose <- descriptors$AgeGen
-
-g.masses <- NULL
-resDiCA <- tepDICA(XYmat, make_data_nominal = FALSE, 
-                   group.masses = g.masses,
-                   #weight = rep(1, nrow(XYmat)),# -- if equal weights for all columns,                    
-                   DESIGN = design.choose, graphs = FALSE)
-
-# Inferences ----
-set.seed(70301) # set the seed
-# for random so that we all have the same results.
-nIter = 1000
-resDiCA.inf <- tepDICA.inference.battery(XYmat,make_data_nominal = FALSE,
-                                         DESIGN = design.choose,
-                                         group.masses = g.masses,
-                                         test.iters = nIter,
-                                         #weight = rep(1, nrow(XYmat)), # -- if equal weights for all columns,
-                                         graphs = FALSE)
-#_____________________________________________________________________
-#_____________________________________________________________________
+``` r
 # Graphics ----
-# scree for ev  ----
 # The ScreePlot. Fixed Effects. ----
-# Get the ScreePlot
-# scree for ev ----
-dev.new()
+# dev.new()
 a0001.Scree.sv <- PlotScree(ev = resDiCA$TExPosition.Data$eigs,
           title = 'DICA MHLA-c: Inertia Scree Plot',
           plotKaiser = FALSE, 
           color4Kaiser = ggplot2::alpha('darkorchid4', .5),
           lwd4Kaiser  = 2)
+```
+
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+``` r
 # Save the plot
 #a0001.Scree.sv <- recordPlot()
+```
 
+``` r
 #_____________________________________________________________________
 # catColors ---- Age + Gender
 catColors <- as.factor(design.age.gen)
-catColors <- dplyr::recode(catColors, "≥25.M" = '#44277b', 
-                            "≥25.F" = '#761266',
-                            "≤24.M" = '#816eff',
-                            "≤24.F" = '#c16ddd')
+catColors <- dplyr::recode(catColors, "25+.M" = '#44277b', 
+                            "25+.F" = '#761266',
+                            "18-24.M" = '#816eff',
+                            "18-24.F" = '#c16ddd')
 
 #_____________________________________________________________________
 #  Observations and means ----
 #  Observations ----
 #_____________________________________________________________________
-# I-set map ----
-# a graph of the observations
 axis1 = 1
 axis2 = 2
 Imap.constraints  <- lapply(prettyGraphs::minmaxHelper(resDiCA$TExPosition.Data$fii[,c(axis1, axis2)]), "*", 0.9)
 
 ## Use the colors below if you want to colour by performance-levels.
-perf <- read.csv("performanceMCA.csv",header=TRUE)
+perf <- read.csv(paste0(DataDir,"MHLAc_Obs4MCA.csv"), header=TRUE)
 perf.groups <- as.matrix(perf[,1])
 
 col4perf <- dplyr::recode(as.matrix(perf), "High" = 'mediumseagreen',
@@ -189,19 +82,17 @@ factor.choose <- descriptors$AgeGen
 
 # a vector of color for the means
 # Explicit recoding to make sure that the names match
-# Needs to be improved
-
 
 catMeans <- PTCA4CATA::getMeans(resDiCA$TExPosition.Data$fii, 
                                  factor = factor.choose)
+
 # a vector of color for the means
 # Explicit recoding to make sure that the names match
-# Needs to be improved
-col4Means <- recode(rownames(catMeans), "≥25.M" = '#44277b', 
-                    "≥25.F" = '#761266',
-                    "≤24.M" = '#816eff',
-                    "≤24.F" = '#c16ddd')
-# the map ----
+col4Means <- recode(rownames(catMeans), "25+.M" = '#44277b', 
+                    "25+.F" = '#761266',
+                    "18-24.M" = '#816eff',
+                    "18-24.F" = '#c16ddd')
+# The map ----
 MapGroup <- PTCA4CATA::createFactorMap(catMeans, axis1 = 1, axis2 = 2,
                                # use the constraints from the main map
                               constraints = Imap$constraints,
@@ -212,20 +103,30 @@ MapGroup <- PTCA4CATA::createFactorMap(catMeans, axis1 = 1, axis2 = 2,
                               text.cex = 6, alpha.points = 0.75,
                               col.axes = "orchid4", alpha.axes = 0.5,
                               col.background = adjustcolor("lavender", alpha.f = 0))
+
 # The map with observations and group means
 options(ggrepel.max.overlaps = Inf)
 a002a.DICA <- Imap$zeMap + label4Map +
   MapGroup$zeMap_dots + MapGroup$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a002a.DICA)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+``` r
 # The map with observations and group means with performance colors
 a002aa.DICA <- Imap.perf$zeMap + label4Map +
   MapGroup$zeMap_dots + MapGroup$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a002aa.DICA)
+```
+
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+``` r
 #_____________________________________________________________________
 # Confidence intervals
 # Bootstrapped CI ----
@@ -238,7 +139,8 @@ truc <- sub(".","",truc)
 truc <- match(truc,rownames(catMeans))
 
 col4Means.ordered <- col4Means[(truc)]
-#
+
+# The map
 GraphElli <- PTCA4CATA::MakeCIEllipses(
   resDiCA.inf$Inference.Data$boot.data$fi.boot.data$boots[,1:2,],
   col = col4Means.ordered, 
@@ -246,25 +148,29 @@ GraphElli <- PTCA4CATA::MakeCIEllipses(
   #centers = resDiCA$TExPosition.Data$fi,
   p.level = .95
 )
+
 #_____________________________________________________________________
-# create the I-map with Observations, means and confidence intervals
-#
+# The map with Observations, means and confidence intervals
+#_____________________________________________________________________
+
 a002b.DICA.withCI <-  Imap$zeMap_background + Imap$zeMap_dots +
   MapGroup$zeMap_dots + MapGroup$zeMap_text +
   GraphElli + label4Map +
   ggtitle('DICA: Group Centers with CI and Observations') +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-#_____________________________________________________________________
-# plot it!
-dev.new()
+# dev.new()
 print(a002b.DICA.withCI)
-# #_____________________________________________________________________
-# with Hull ----
+```
+
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+``` r
+# The map with hull ----
 Fii <- resDiCA$TExPosition.Data$fii
 Fii.loo <-resDiCA.inf$Inference.Data$loo.data$loo.fii
 design.hull <- descriptors$AgeGen
-# use function MakeToleranceIntervals from package PTCA4CATA
-# colnames(Fii) <- paste0('Dimension ', 1:2)
+
+# Use function MakeToleranceIntervals from package PTCA4CATA
 colnames(Fii) <- paste0('D', 1:ncol(Fii))
 Tol.GraphHull <- PTCA4CATA::MakeToleranceIntervals(Fii,
                                                design = design.hull,
@@ -274,6 +180,7 @@ Tol.GraphHull <- PTCA4CATA::MakeToleranceIntervals(Fii,
                                                alpha.line = 0.5,
                                                line.size = .75,
                                                p.level = 1.0)
+
 Pred.GraphHull <- PTCA4CATA::MakeToleranceIntervals(Fii.loo,
                                                    design = design.hull,
                                                    col = col4Means,
@@ -282,25 +189,33 @@ Pred.GraphHull <- PTCA4CATA::MakeToleranceIntervals(Fii.loo,
                                                    alpha.line = 0.5,
                                                    line.size = .75,
                                                    p.level = 1.0)
-#(
+
+# Fixed effects
 a002c.DICA.withTolHull <-  Imap$zeMap_background + Imap$zeMap_dots + 
   Tol.GraphHull + label4Map +
   MapGroup$zeMap_dots + MapGroup$zeMap_text +
   ggtitle('DICA: Group Centers with Tolerance Hulls and Observations') +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
+#  dev.new()
+  print(a002c.DICA.withTolHull )
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+``` r
+# Random effects
 a002d.DICA.withPredHull <-  Imap$zeMap_background + Imap$zeMap_dots + 
   Pred.GraphHull + label4Map +
   MapGroup$zeMap_dots + MapGroup$zeMap_text +
   ggtitle('DICA: Group Centers with Prediction Hulls and Observations') +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
+#  dev.new()
+  print(a002d.DICA.withPredHull )
+```
 
-# To print the Hulls
-dev.new()
-print(a002c.DICA.withTolHull )
-dev.new()
-print(a002d.DICA.withPredHull )
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
+``` r
 #_____________________________________________________________________
 ## The map with observations, group means and supplementary projections
 
@@ -312,15 +227,16 @@ age.gen.more.sup <- Boot4Mean(resDiCA$TExPosition.Data$fii, design = design.age.
 
 gen.sup <- Boot4Mean(resDiCA$TExPosition.Data$fii, design = design.gender, niter = 1000, suppressProgressBar = TRUE)
 
-major.sup <- Boot4Mean(resDiCA$TExPosition.Data$fii, design = design.major, niter = 1000, suppressProgressBar = TRUE)
-
 clin.sup <- Boot4Mean(resDiCA$TExPosition.Data$fii, design = design.clin, niter = 1000, suppressProgressBar = TRUE)
 
 interaction.sup <- Boot4Mean(resDiCA$TExPosition.Data$fii, design = design.age.gen, niter = 1000, suppressProgressBar = TRUE)
+```
 
+``` r
+# Age as supp
 col4Means.age <- recode(rownames(age.sup$GroupMeans),
-                        "≤24" = '#e1037f',
-                        "≥25" = '#7333ca')
+                        "18-24" = '#e1037f',
+                        "25+" = '#7333ca')
 
 supMap.age <- PTCA4CATA::createFactorMap(age.sup$GroupMeans, axis1 = 1, axis2 = 2,
                                          # use the constraints from the main map
@@ -332,11 +248,10 @@ supMap.age <- PTCA4CATA::createFactorMap(age.sup$GroupMeans, axis1 = 1, axis2 = 
                                          col.axes = "orchid4", alpha.axes = 0.5,
                                          col.background = adjustcolor("lavender", alpha.f = 0),
                                          text.cex = 5, alpha.points = 0.75)
-## Age as supp
 a003a.DICA.sup.age <- Imap$zeMap + label4Map +
   supMap.age$zeMap_dots + supMap.age$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-#print(a003a.DICA.sup.age)
+
 # Make CIs
 GraphElli.age <- PTCA4CATA::MakeCIEllipses(
   age.sup$BootCube[,1:2,],
@@ -344,14 +259,18 @@ GraphElli.age <- PTCA4CATA::MakeCIEllipses(
   alpha.ellipse = 0.1,
   line.size = 0.5,
   #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
+  p.level = .95)
+
 a003aa.DICA.sup.age.CI <- Imap$zeMap + label4Map +
   GraphElli.age + supMap.age$zeMap_dots + supMap.age$zeMap_text + 
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003aa.DICA.sup.age.CI)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+``` r
 ## Gender as supp
 col4Means.gen <- recode(rownames(gen.sup$GroupMeans),
                         "Female" = '#fc83cb',
@@ -371,7 +290,7 @@ supMap.gen <- PTCA4CATA::createFactorMap(gen.sup$GroupMeans, axis1 = 1, axis2 = 
 a003b.DICA.sup.gen <- Imap$zeMap + label4Map +
   supMap.gen$zeMap_dots + supMap.gen$zeMap_text+
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-#print(a003b.DICA.sup.gen)
+
 # Make CIs
 GraphElli.gen <- PTCA4CATA::MakeCIEllipses(
   gen.sup$BootCube[,1:2,],
@@ -379,29 +298,36 @@ GraphElli.gen <- PTCA4CATA::MakeCIEllipses(
   alpha.ellipse = 0.1,
   line.size = 0.5,
   #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
+  p.level = .95)
+
 a003bb.DICA.sup.gen.CI <- Imap$zeMap + label4Map +
   GraphElli.gen + supMap.gen$zeMap_dots + supMap.gen$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003bb.DICA.sup.gen.CI)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+
+``` r
 ## Age and gender main effects as supp
 a003bbb.DICA.sup.age.gen <- Imap$zeMap + label4Map +
   supMap.age$zeMap_dots + supMap.age$zeMap_text + GraphElli.age +
   supMap.gen$zeMap_dots + supMap.gen$zeMap_text + GraphElli.gen +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003bbb.DICA.sup.age.gen)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+
+``` r
 ## Age and gender interaction
-
 col4Means.sup.interaction <- recode(rownames(interaction.sup$GroupMeans),
-                                    "≥25.M" = '#44277b', 
-                                    "≥25.F" = '#761266',
-                                    "≤24.M" = '#816eff',
-                                    "≤24.F" = '#c16ddd')
+                                    "25+.M" = '#44277b', 
+                                    "25+.F" = '#761266',
+                                    "18-24.M" = '#816eff',
+                                    "18-24.F" = '#c16ddd')
 
 supMap.interaction <- PTCA4CATA::createFactorMap(interaction.sup$GroupMeans, axis1 = 1, axis2 = 2,
                                                  # use the constraints from the main map
@@ -416,7 +342,6 @@ supMap.interaction <- PTCA4CATA::createFactorMap(interaction.sup$GroupMeans, axi
 a003bbbb.DICA.sup.interaction <- Imap$zeMap + label4Map +
   supMap.interaction$zeMap_dots + supMap.interaction$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-#print(a003bbbb.DICA.sup.interaction)
 
 # Add lines to interaction effect
 DICA.line.sup.F <- data.frame(cbind(interaction.sup$GroupMeans[c(1,3),1:2]))
@@ -428,9 +353,13 @@ a003bbbbb.DICA.interaction.lines <- Imap$zeMap + label4Map +
   geom_path(data = DICA.line.sup.F, color = '#fc83cb', size = 2, lineend = "round", linejoin = "round", alpha = 0.5) +
   geom_path(data = DICA.line.sup.M, color = '#4b98f9', size = 2, lineend = "round", linejoin = "round", alpha = 0.5) +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003bbbbb.DICA.interaction.lines)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+``` r
 # Make CIs
 GraphElli.interaction <- PTCA4CATA::MakeCIEllipses(
   interaction.sup$BootCube[,1:2,],
@@ -438,23 +367,31 @@ GraphElli.interaction <- PTCA4CATA::MakeCIEllipses(
   alpha.ellipse = 0.1,
   line.size = 0.5,
   #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
+  p.level = .95)
 
 a003bbbbbb.DICA.sup.interaction.CI <- Imap$zeMap + label4Map +
   GraphElli.interaction + supMap.interaction$zeMap_dots + supMap.interaction$zeMap_text + 
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003bbbbbb.DICA.sup.interaction.CI)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
+
+``` r
+# Map with main effects and interaction
 a003bbbbbbb.DICA.sup.main.effects.interaction.CI <- Imap$zeMap + label4Map +
   supMap.gen$zeMap_dots + supMap.gen$zeMap_text + GraphElli.gen +
   supMap.age$zeMap_dots + supMap.age$zeMap_text + GraphElli.age +
   supMap.interaction$zeMap_dots + supMap.interaction$zeMap_text + GraphElli.interaction +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003bbbbbbb.DICA.sup.main.effects.interaction.CI)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
+``` r
 ## More age-groups as supp
 col4Means.age.more <- recode(rownames(age.more.sup$GroupMeans),
                              "18-20" = '#e1037f',
@@ -472,11 +409,12 @@ supMap.age.more <- PTCA4CATA::createFactorMap(age.more.sup$GroupMeans, axis1 = 1
                                               col.axes = "orchid4", alpha.axes = 0.5,
                                               col.background = adjustcolor("lavender", alpha.f = 0),
                                               text.cex = 5, alpha.points = 0.75)
+
 # The map with supp and group means
 a003c.DICA.sup.age.more <- Imap$zeMap + label4Map +
   supMap.age.more$zeMap_dots + supMap.age.more$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-#print(a003c.DICA.sup.age.more)
+
 # Make CIs
 GraphElli.age.more <- PTCA4CATA::MakeCIEllipses(
   age.more.sup$BootCube[,1:2,],
@@ -484,14 +422,18 @@ GraphElli.age.more <- PTCA4CATA::MakeCIEllipses(
   line.size = 0.5,
   col = col4Means.age.more, 
   #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
+  p.level = .95)
+
 a003cc.DICA.sup.age.more.CI <- Imap$zeMap + label4Map +
   GraphElli.age.more + supMap.age.more$zeMap_dots + supMap.age.more$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16)) 
-dev.new()
+# dev.new()
 print(a003cc.DICA.sup.age.more.CI)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
+
+``` r
 ## More age-groups and gender as supp
 col4Means.age.gen.more <- recode(rownames(age.gen.more.sup$GroupMeans),
                              "18-20.F" = '#fc83cb',
@@ -518,6 +460,7 @@ a003d.DICA.sup.age.gen.more <- Imap$zeMap + label4Map +
   supMap.age.gen.more$zeMap_dots + supMap.age.gen.more$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
 #print(a003d.DICA.sup.age.gen.more)
+
 # Make CIs
 GraphElli.age.gen.more <- PTCA4CATA::MakeCIEllipses(
   age.gen.more.sup$BootCube[,1:2,],
@@ -525,10 +468,9 @@ GraphElli.age.gen.more <- PTCA4CATA::MakeCIEllipses(
   alpha.ellipse = 0.1,
   line.size = 0.5,
   #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
+  p.level = .95)
 
-# Make a line
+# Make a line to join the points
 DICA.line.sup.F <- data.frame(cbind(age.gen.more.sup$GroupMeans[c(1,3,5,7),1:2]))
 colnames(DICA.line.sup.F) <- cbind('Dimension 1', 'Dimension 2')
 DICA.line.sup.M <- data.frame(cbind(age.gen.more.sup$GroupMeans[c(2,4,6,8),1:2]))
@@ -538,54 +480,25 @@ a003ddd.DICA.sup.age.gen.more.lines <- Imap$zeMap + label4Map +
   geom_path(data = DICA.line.sup.M, color = '#4b98f9', size = 2, lineend = "round", linejoin = "round", alpha = 0.5) +
   supMap.age.gen.more$zeMap_dots + supMap.age.gen.more$zeMap_text +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003ddd.DICA.sup.age.gen.more.lines)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+``` r
 a003dd.DICA.sup.age.gen.more.CI <- Imap$zeMap + label4Map +
   GraphElli.age.gen.more + supMap.age.gen.more$zeMap_dots + supMap.age.gen.more$zeMap_text +
   geom_path(data = DICA.line.sup.F, color = 'hotpink3', size = 2, lineend = "round", linejoin = "round", alpha = 0.8) +
   geom_path(data = DICA.line.sup.M, color = 'royalblue3', size = 2, lineend = "round", linejoin = "round", alpha = 0.8) +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003dd.DICA.sup.age.gen.more.CI)
+```
 
-## Psyc Major as supp
-col4Means.major <- recode(rownames(major.sup$GroupMeans),
-                          "Psyc" = '#ffab6a',
-                          "NonPsyc" = '#ff6e42')
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
-
-supMap.major <- PTCA4CATA::createFactorMap(major.sup$GroupMeans, axis1 = 1, axis2 = 2,
-                                           # use the constraints from the main map
-                                           constraints = Imap$constraints,
-                                           #centers = resDiCA$TExPosition.Data$fi,
-                                           col.points = col4Means.major,
-                                           cex = 3,  # size of the dot (bigger)
-                                           col.labels = col4Means.major,
-                                           col.axes = "orchid4", alpha.axes = 0.5,
-                                           col.background = adjustcolor("lavender", alpha.f = 0),
-                                           text.cex = 5, alpha.points = 0.75)
-
-a003e.DICA.sup.major <- Imap$zeMap + label4Map +
-  supMap.major$zeMap_dots + supMap.major$zeMap_text +
-  theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-#print(a003e.DICA.sup.major)
-
-# Make CIs
-GraphElli.major <- PTCA4CATA::MakeCIEllipses(
-  major.sup$BootCube[,1:2,],
-  col = col4Means.major,
-  alpha.ellipse = 0.1,
-  line.size = 0.5,
-  #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
-a003ee.DICA.sup.major.CI <- Imap$zeMap + label4Map +
-  GraphElli.major + supMap.major$zeMap_dots + supMap.major$zeMap_text + 
-  theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
-print(a003ee.DICA.sup.major.CI)
-
+``` r
 ## Clinical course as supp
 
 col4Means.clin <- recode(rownames(clin.sup$GroupMeans),
@@ -605,7 +518,6 @@ supMap.clin <- PTCA4CATA::createFactorMap(clin.sup$GroupMeans, axis1 = 1, axis2 
 
 a003f.DICA.sup.clin <- Imap$zeMap + label4Map +
   supMap.clin$zeMap_dots + supMap.clin$zeMap_text
-#print(a003f.DICA.sup.clin)
 
 # Make CIs
 GraphElli.clin <- PTCA4CATA::MakeCIEllipses(
@@ -614,23 +526,18 @@ GraphElli.clin <- PTCA4CATA::MakeCIEllipses(
   alpha.ellipse = 0.1,
   line.size = 0.5,
   #centers = resDiCA$TExPosition.Data$fi,
-  p.level = .95
-)
+  p.level = .95)
 
 a003ff.DICA.sup.clin.CI <- Imap$zeMap + label4Map +
   GraphElli.clin + supMap.clin$zeMap_dots + supMap.clin$zeMap_text + 
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(a003ff.DICA.sup.clin.CI)
+```
 
-a003fff.DICA.sup.maj.clin <- Imap$zeMap + label4Map +
-  supMap.major$zeMap_dots + supMap.major$zeMap_text + GraphElli.major +
-  supMap.clin$zeMap_dots + supMap.clin$zeMap_text + GraphElli.clin +
-  theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), 
-        axis.text.y = element_text(size = 16))
-dev.new()
-print(a003fff.DICA.sup.maj.clin)
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
+``` r
 #_____________________________________________________________________
 # J-set ----
 # get colors
@@ -645,6 +552,7 @@ nominalcolnames <- colnames(resDiCA$TExPosition.Data$X)
 nominalcolnames <- nominalcolnames[,data.col.order]
 nominalcolnames <- gsub("\\.[R,W]", "",
                           drop(colnames(resDiCA$TExPosition.Data$X)))
+
 # Use the code below if your data are coded as 0 and 1
 # nominalcolnames <- gsub("\\.[0-1]", "",
 #                         drop(colnames(resDiCA$TExPosition.Data$X)))
@@ -684,26 +592,24 @@ baseMap.j <- PTCA4CATA::createFactorMap(Fj,
                                         col.labels   = col4VarNom)
 #_____________________________________________________________________
 b001.BaseMap.Fj <- baseMap.j$zeMap + label4Map 
-# b002.BaseMapNoDot.Fj  <- baseMap.j$zeMap_background +
-#   baseMap.j$zeMap_dots + label4Map 
-#dev.new()
-#print(b001.BaseMap.Fj)
-#print(b002.BaseMapNoDot.Fj)
 # add Lines ----
 lines4J <- addLines4MCA(Fj, col4Var = col4Var)
-#b003.MapJ.notext <-  b002.BaseMapNoDot.Fj + lines4J
 b003.MapJ.text <-  b001.BaseMap.Fj + lines4J +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(b003.MapJ.text)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+``` r
 #_____________________________________________________________________
 # Create Factor map per block
 
 Fj.constraints  <- lapply(prettyGraphs::minmaxHelper(Fj[,c(axis1, axis2)]), "*", 0.9)
 
-Fj.etio <-Fj[groups=='Etiology',]
-col4etio <- col4VarNom[groups=='Etiology']
+Fj.etio <-Fj[groups.norm$Classification=='Etiology',]
+col4etio <- col4VarNom[groups.norm$Classification=='Etiology']
 baseMap.j.etio <- PTCA4CATA::createFactorMap(Fj.etio,
                                         display.labels = TRUE,
                                         col.points   = col4etio,
@@ -714,15 +620,20 @@ baseMap.j.etio <- PTCA4CATA::createFactorMap(Fj.etio,
                                         col.background = adjustcolor("lavender", alpha.f = 0),
                                         col.labels   = col4etio)
 b001.BaseMap.Fj.etio <- baseMap.j.etio$zeMap + label4Map 
-# add Lines ----
+
+# Add Lines ----
 lines4J.etio <- addLines4MCA(Fj.etio, col4Var = col.etio.list)
 b003a.MapJ.text.etio <-  b001.BaseMap.Fj.etio + lines4J.etio +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(b003a.MapJ.text.etio)
+```
 
-Fj.symp <-Fj[groups=='Symptoms',]
-col4symp <- col4VarNom[groups=='Symptoms']
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+``` r
+Fj.symp <-Fj[groups.norm$Classification=='Symptoms',]
+col4symp <- col4VarNom[groups.norm$Classification=='Symptoms']
 baseMap.j.symp <- PTCA4CATA::createFactorMap(Fj.symp,
                                              display.labels = TRUE,
                                              col.points   = col4symp,
@@ -733,15 +644,20 @@ baseMap.j.symp <- PTCA4CATA::createFactorMap(Fj.symp,
                                              col.background = adjustcolor("lavender", alpha.f = 0),
                                              col.labels   = col4symp)
 b001.BaseMap.Fj.symp <- baseMap.j.symp$zeMap + label4Map 
-# add Lines ----
+
+# Add Lines ----
 lines4J.symp <- addLines4MCA(Fj.symp, col4Var = col.sym.list)
 b003b.MapJ.text.symp <-  b001.BaseMap.Fj.symp + lines4J.symp +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(b003b.MapJ.text.symp)
+```
 
-Fj.treat <-Fj[groups=='Treatment',]
-col4treat <- col4VarNom[groups=='Treatment']
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+
+``` r
+Fj.treat <-Fj[groups.norm$Classification=='Treatment',]
+col4treat <- col4VarNom[groups.norm$Classification=='Treatment']
 baseMap.j.treat <- PTCA4CATA::createFactorMap(Fj.treat,
                                              display.labels = TRUE,
                                              col.points   = col4treat,
@@ -752,15 +668,20 @@ baseMap.j.treat <- PTCA4CATA::createFactorMap(Fj.treat,
                                              col.background = adjustcolor("lavender", alpha.f = 0),
                                              col.labels   = col4treat)
 b001.BaseMap.Fj.treat <- baseMap.j.treat$zeMap + label4Map 
-# add Lines ----
+
+# Add Lines ----
 lines4J.treat <- addLines4MCA(Fj.treat, col4Var = col.treat.list)
 b003c.MapJ.text.treat <-  b001.BaseMap.Fj.treat + lines4J.treat +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(b003c.MapJ.text.treat)
+```
 
-Fj.gen <-Fj[groups=='General',]
-col4gen <- col4VarNom[groups=='General']
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-20-2.png)<!-- -->
+
+``` r
+Fj.gen <-Fj[groups.norm$Classification=='General',]
+col4gen <- col4VarNom[groups.norm$Classification=='General']
 baseMap.j.gen <- PTCA4CATA::createFactorMap(Fj.gen,
                                               display.labels = TRUE,
                                               col.points   = col4gen,
@@ -771,28 +692,20 @@ baseMap.j.gen <- PTCA4CATA::createFactorMap(Fj.gen,
                                               col.background = adjustcolor("lavender", alpha.f = 0),
                                               col.labels   = col4gen)
 b001.BaseMap.Fj.gen <- baseMap.j.gen$zeMap + label4Map 
-# add Lines ----
+
+# Add Lines ----
 lines4J.gen <- addLines4MCA(Fj.gen, col4Var = col.gen.list)
 b003d.MapJ.text.gen <-  b001.BaseMap.Fj.gen + lines4J.gen +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(b003d.MapJ.text.gen)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+``` r
 #_____________________________________________________________________
-# #  Contributions ---- USE BLOCK COLORS
-# 
-# color4Blocks <- prettyGraphsColorSelection(dim(unique(groups))[1],offset =11,
-#                                            starting.color = 44)
-# 
-# nominalcolnames <- colnames(resDiCA$TExPosition.Data$X) 
-# nominalcolnames <- gsub("\\.[0-1]", "", 
-#                         drop(colnames(resDiCA$TExPosition.Data$X)))
-# 
-# col4Var <- dplyr::recode(as.matrix(groups), "Etiology" = color4Blocks[1], 
-#                          "General" = color4Blocks[2],
-#                          "Symptoms" = color4Blocks[3],
-#                          "Treatment" = color4Blocks[4])
-# col4VarNom <- col4Var
+##  Contributions ---- USE BLOCK COLORS
 #_____________________________________________________________________
 #_____________________________________________________________________
 # Ctr J-set ----
@@ -816,8 +729,13 @@ c001.plotCtrj.1 <- PrettyBarPlot2(
   ylab = "Signed Contributions")
 c001.plotCtrj.1.all <-  c001.plotCtrj.1 +
   theme(axis.title = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(c001.plotCtrj.1.all)
+```
+
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
+
+``` r
 #_____________________________________________________________________
 ###### CtrJ 2 ====
 # 
@@ -836,14 +754,15 @@ c002.plotCtrj.2 <- PrettyBarPlot2(
   ylab = "Signed Contributions")
 c002.plotCtrj.2.all <-  c002.plotCtrj.2 +
   theme(axis.title = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(c002.plotCtrj.2.all)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
+
+``` r
 #_____________________________________________________________________
 # Contribution Maps ---- USE BLOCK COLORS
-
-#color4Blocks <- prettyGraphsColorSelection(dim(unique(groups))[1],offset =11,
-#                                           starting.color = 44)
 
 color4Blocks.4 <- c("#8d0000", "#2e8537", "#ff9000", "#004c7d")
 groupColors.33 <- filter(groups.norm, !grepl(".R",groups.norm$GroupNorm))
@@ -887,32 +806,29 @@ c003a.BaseMap.Ctrj <- baseMap.ctrj$zeMap + label4Map +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
 # c003.BaseMapNoDot.Ctrj  <- baseMap.ctrj$zeMap_background +
 #   baseMap.ctrj$zeMap_text + label4Map 
-dev.new()
+# dev.new()
 print(c003a.BaseMap.Ctrj)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-24-1.png)<!-- -->
+
+``` r
 c003b.BaseMap.Ctrj.imp <- baseMap.ctrj.imp$zeMap + label4Map +
   ggtitle('Important Variables Contributions Map') + 
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
 # c003.BaseMapNoDot.Ctrj  <- baseMap.ctrj$zeMap_background +
 #   baseMap.ctrj$zeMap_text + label4Map 
-dev.new()
+# dev.new()
 print(c003b.BaseMap.Ctrj.imp)
+```
 
-#fj.groups <- t(groups.norm.nom.bary)%*%Fj
-#cj.groups <- t(groups.norm.nom)%*%ctrj
-#signed.cj.groups <- cj.groups * sign(fj.groups)
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
 
-
-#_______________________________________________
-#_____________________________________________________________________
+``` r
 #_____________________________________________________________________
 #  Bootstrap ratios ----
 #_____________________________________________________________________
 # BR4Variables ----
-# Note that we do not have the BR for the levels, 
-# only of the variables
-# Also Tannin is prefctly associated with the red wine (value 2)
-# This create a strange BR = 0 in the BR value.
 #_____________________________________________________________________
 #BR. 1 ====
 # 
@@ -934,10 +850,13 @@ d001.plotBRj.1 <- PrettyBarPlot2(
   ylab = "Bootstrap Ratios")
 d001.plotBRj.1.all <-  d001.plotBRj.1 +
   theme(axis.title = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(d001.plotBRj.1.all)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
 
+``` r
 # #_____________________________________________________________________
 # ###### BR. 2 ====
 # # 
@@ -956,15 +875,19 @@ d002.plotBRj.2 <- PrettyBarPlot2(
   ylab = "Bootstrap Ratios")
 d002.plotBRj.2.all <-  d002.plotBRj.2 +
   theme(axis.title = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(d002.plotBRj.2.all)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-27-1.png)<!-- -->
+
+``` r
+# #_____________________________________________________________________
 
 ## Block projections
-
 resDiCA4Proj <- resDiCA # The code was written to handle epCA output
 names(resDiCA4Proj) <- c("ExPosition.Data","Plotting.Data")
-group4F <- as.factor(groups)
+group4F <- as.factor(groups.norm$Classification)
 
 # PartialProj4CA
 tryProj <- PTCA4CATA::partialProj4CA(resDiCA4Proj,
@@ -976,11 +899,6 @@ F.ca <- resDiCA4Proj$ExPosition.Data$fi
 h_axis <- 1
 v_axis <- 2
 genTitle4Compromise <- "MHLAc"
-# color4Blocks <- prettyGraphsColorSelection(dim(unique(groups))[1],offset =11,
-#                                              starting.color = 44)
-
-#color4Blocks <- c("#550200", "#553100", "#042037", "#004304")
-#color4Blocks.4 <- c("#8d0000", "#2e8537", "#ff9000", "#004c7d")
 color4Blocks.4corr <- c("#004c7d","#2e8537","#8d0000",  "#ff9000")
 
 
@@ -990,12 +908,9 @@ truc2 <- match(truc2,rownames(catMeans))
 
 color4Groups <- col4Means[(truc2)]
 
-#color4Groups <- col4Means
-
-
 constraints.part.proj <- minmaxHelper4Partial(F.ca, tryProj$Fk)
 
-nDisorders    <- dim(unique(groups))[1]
+nDisorders    <- dim(unique(as.matrix(group4F)))[1]
 nCategories   <- dim(resDiCA4Proj$ExPosition.Data$fi)[1]
 
 gg.compromise.graph.out.ca <- PTCA4CATA::createFactorMap(F.ca,
@@ -1010,11 +925,9 @@ gg.compromise.graph.out.ca <- PTCA4CATA::createFactorMap(F.ca,
                            col.axes = "orchid4", alpha.axes = 0.5,
                            col.background = adjustcolor("lavender", alpha.f = 0),
                            text.cex = 5, alpha.points = 0.75)
+```
 
-# b2.gg.Smap.ca <-  
-#   gg.compromise.graph.out.ca$zeMap + label4Map 
-#print(b2.gg.Smap.ca)
-
+``` r
 #________________________________________________
 # Partial FS ----
 
@@ -1035,17 +948,24 @@ e001.partialFS.map.ca.byProducts <-
   gg.compromise.graph.out.ca$zeMap + 
   map4PFS.ca$mapColByItems + label4Map +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(e001.partialFS.map.ca.byProducts) 
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-29-1.png)<!-- -->
 
+``` r
 e002.partialFS.map.ca.byCategories  <- 
   gg.compromise.graph.out.ca$zeMap + 
   map4PFS.ca$mapColByBlocks + label4Map +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-dev.new()
+# dev.new()
 print(e002.partialFS.map.ca.byCategories)
+```
 
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-30-1.png)<!-- -->
+
+``` r
 # Contribution Maps ----
 Ctr.Blocks <- tryProj$Ctrk*tryProj$bk
 block.contr.constraints <- Imap$constraints
@@ -1062,20 +982,19 @@ baseMap.ctrj.blocks <- PTCA4CATA::createFactorMap(Ctr.Blocks,
 e003.BaseMap.Ctrj.blocks <- baseMap.ctrj.blocks$zeMap + label4Map +
   ggtitle('Blocks Contributions Map') +
   theme(axis.title = element_text(size=16), axis.text.x = element_text(size=16), axis.text.y = element_text(size = 16))
-# e003.BaseMapNoDot.Ctrj.blocks  <- baseMap.ctrj.blocks$zeMap_background +
-#   baseMap.ctrj.blocks$zeMap_text + label4Map 
-dev.new()
+# dev.new()
 print(e003.BaseMap.Ctrj.blocks)
+```
 
-#_____________________________________________________________________
-#_____________________________________________________________________
-# End of Graphs ----
-#_____________________________________________________________________
-#_____________________________________________________________________
-# Save pptx ----
+![](2_PlotResults_files/figure-gfm/unnamed-chunk-31-1.png)<!-- -->
+
+``` r
+#### Save PowerPoint
 # Automatic save with saveGraph2pptx
 savedList <- PTCA4CATA::saveGraph2pptx(file2Save.pptx = path2save, 
                                        title = leTitre, 
                                        addGraphNames = TRUE)
+```
 
-#_____________________________________________________________________
+    ## Warning: File: ../results/GenAge-Block-DiCA.pptx already exists.
+    ##  Oldfile has been renamed: ../results/GenAge-Block-DiCA-2021-10-11.pptx
